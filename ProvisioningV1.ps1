@@ -11,7 +11,7 @@ param
 [string]$upnAppend = '@varian.com'
 
 <# this is the Identifier of our AD Directory/Application #>
-[string]$DirectoryAppId = '0oa3aktlnubXOcaXH0h7'
+[string]$Directoryaid = '0oa3aktlnubXOcaXH0h7'
 
 <# this is the list of Attributes that are going to be included in our instruction file that we want to pass through to the newly created Okta users #>
 [array]$customAttribs = @('city','employeeType','department','employeeID','title','vmsOwnerID','managerId')
@@ -24,22 +24,12 @@ No Edits required below here
 #>
 
 
-
-if (!Test-Path -PathType Container -Path ($OktaModulePath + "\Okta") )
+if (!(Test-Path -PathType Container -Path ($OktaModulePath + "\Okta") ))
 {
     Write-Error 'OktaModulePath is incorrect, Cannot continue'
     sendOutFile -status 'Failure' -internalCode VE0000 -details "OktaModulePath is incorrect, cannot continue"
 }
-
-[boolean]$createdUser = $false
-[boolean]$sent = $false
-
-$tlog = $path.Replace("-input.json","-trace.log")
-$elog = $path.Replace("-input.json","-error.log")
-[string]$errstatus = $null
-
 <# Set the Path to include the location of our Okta Module #>
-
 [Environment]::SetEnvironmentVariable("PSModulePath", ( [Environment]::GetEnvironmentVariable("PSModulePath") + ";" + $OktaModulePath ) )
 Import-Module okta
 if (! (Get-Module -Name 'Okta'))
@@ -48,6 +38,12 @@ if (! (Get-Module -Name 'Okta'))
     sendOutFile -status 'Failure' -internalCode VE0000 -details "Okta Module not installed or unavailable, cannot continue"
 }
 
+[boolean]$createdUser = $false
+[boolean]$sent = $false
+
+$tlog = $path.Replace("-input.json","-trace.log")
+$elog = $path.Replace("-input.json","-error.log")
+[string]$errstatus = $null
 
 function Get-CurrentLineNumber()
 { 
@@ -146,7 +142,7 @@ function getUserbyName()
         try
         {
             $search = $userName + "@" + $domain
-            $user = oktaGetUserbyID -oOrg $oktaOrg -userId $search
+            $user = oktaGetUserbyID -oOrg $oktaOrg -uid $search
         }
         catch
         {
@@ -162,20 +158,20 @@ function getUser()
 {
     param
     (
-        [string]$userId,
+        [string]$uid,
         [boolean]$full = $false
     )
     try
     {
         #Happy Path, the userName is Unique or it is an OktaID
-        $user = oktaGetUserbyID -oOrg $oktaOrg -userId $userId
+        $user = oktaGetUserbyID -oOrg $oktaOrg -uid $uid
     }
     catch
     {
         try
         {
             #Do the search by Name
-            $user = getUserbyName -userName $userId       
+            $user = getUserbyName -userName $uid       
         }
         catch
         {
@@ -204,7 +200,7 @@ function setGroups()
     param
     (
         [object]$user,
-        [string]$groupId
+        [string]$gid
     )
 
     if ((!$user.groups) -or ($user.groups -eq $null))
@@ -213,13 +209,13 @@ function setGroups()
     }
 
     #Does the user already belong to said group?
-    if (!$user.groups.Contains($groupId))
+    if (!$user.groups.Contains($gid))
     {
         #If not
         #Check to make sure the group is real
         try
         {
-            $group = oktaGetGroupbyId -oOrg $oktaOrg -groupId $groupId
+            $group = oktaGetGroupbyId -oOrg $oktaOrg -gid $gid
         }
         catch
         {
@@ -231,13 +227,13 @@ function setGroups()
         {
             try
             {
-                $_c = oktaAddUseridtoGroupid -oOrg $oktaOrg -userId $user.id -groupId $groupId
+                $_c = oktaAddUseridtoGroupid -oOrg $oktaOrg -uid $user.id -gid $gid
                 $user.groups.add($group.id,$group)
             }
             catch
             {
                 #Failed to add the group
-                $user.groups.add($groupId,$false)
+                $user.groups.add($gid,$false)
             }
         }
     }
@@ -255,7 +251,7 @@ function setPassword()
     $tpass = oktaNewPassword -Length 15 -MustIncludeSets 3
     try
     {
-        $tuser = oktaAdminUpdatePasswordbyID -oOrg $oktaOrg -userId $user.id -password $tpass
+        $tuser = oktaAdminUpdatePasswordbyID -oOrg $oktaOrg -uid $user.id -password $tpass
     }
     catch
     {
@@ -297,7 +293,7 @@ function getGroups()
 
     try
     {
-        $grouparray = oktaGetGroupsbyUserId -oOrg $oktaOrg -userId $oktaId
+        $grouparray = oktaGetGroupsbyUserId -oOrg $oktaOrg -uid $oktaId
         $groups = New-Object System.Collections.Hashtable
         foreach ($g in $grouparray)
         {
@@ -321,7 +317,7 @@ function getApps()
 
     try
     {
-        $apparray = oktaGetAppsbyUserId -oOrg $oktaOrg -userId $oktaId
+        $apparray = oktaGetAppsbyUserId -oOrg $oktaOrg -uid $oktaId
         $apps = New-Object System.Collections.Hashtable
         foreach ($a in $apparray)
         {
@@ -364,10 +360,10 @@ function createUser()
     }
     sleep -Milliseconds 500
     #Wait for the user to exit transitioning to status
-    $user = getUser -full $true -userId $user.id
+    $user = getUser -full $true -uid $user.id
     while (($user.status -ne 'ACTIVE') -and ($loopcount -le 10))
     {
-        $user = getUser -full $true -userId $user.id
+        $user = getUser -full $true -uid $user.id
         $loopcount++
         sleep -Seconds 1
     }
@@ -392,7 +388,7 @@ function updateUser()
     if ($instruction.profile.ownerOktaID -eq "PlaceHolderforOwnerOktaID")
     {
         $ownerusername = $instruction.userName.replace($instruction.profile.usernamePrefix,'')
-        $owner = getUser -full $false -userId $ownerusername
+        $owner = getUser -full $false -uid $ownerusername
         Add-Member -InputObject $instruction.profile -MemberType NoteProperty -Name vmsOwnerID -Value $owner.id -Force
     }
     #>
@@ -400,9 +396,9 @@ function updateUser()
     #Does the user already exist?
     if ( (!$instruction.externalId) -or ($instruction.externalId -eq $null) -or ($instruction.externalId.ToLower() -eq 'null') )
     {
-        $user = getUser -full $true -userId $instruction.userName
+        $user = getUser -full $true -uid $instruction.userName
     } else {
-        $user = getUser -full $true -userId $instruction.externalId
+        $user = getUser -full $true -uid $instruction.externalId
     }
 
     if (!$user)
@@ -428,7 +424,7 @@ function updateUser()
         $user.profile.email = ("x" + $instruction.profile.ownerEmail)
         try
         {
-            oktaUpdateUserProfilebyID -oOrg $oktaOrg -userId $user.id -UpdatedProfile $user.profile
+            oktaUpdateUserProfilebyID -oOrg $oktaOrg -uid $user.id -UpdatedProfile $user.profile
         }
         catch
         {
@@ -438,7 +434,7 @@ function updateUser()
     }
 
     #we've got the user, see if it belongs to to the provisioning group
-    $user = setGroups -user $user -groupId $instruction.profile.provisioningGroupID
+    $user = setGroups -user $user -gid $instruction.profile.provisioningGroupID
     #setGroups will never fail, it will just return a user object, check the groups member of the user object to ensure efficacy
     if (!$user.groups.Contains($instruction.profile.provisioningGroupID))
     {
@@ -451,7 +447,7 @@ function updateUser()
     #we've got the user, user is assigned to the provisioning group. see if it belongs to the push group(s)
     foreach ($pushgroup in $instruction.profile.pushGroupId)
     {
-        $user = setGroups -user $user -groupId $pushgroup
+        $user = setGroups -user $user -gid $pushgroup
         if (!$user.groups.Contains($pushgroup))
         {
             $errstatus += "Push group (" + $pushgroup + ") does not exist.`n"
@@ -464,7 +460,7 @@ function updateUser()
     #it seems we have the user created, and we've added it (or tried our darndest) to the required groups.
     #Get the user one more time (why not right), if I wasn't getting the user i'd feel compelled to put a sleep in here.
     sleep -Seconds 2
-    $user = getUser -full $true -userId $user.id
+    $user = getUser -full $true -uid $user.id
 
     if ($createdUser)
     {
@@ -491,7 +487,7 @@ function removeGroups()
         {
             try
             {
-                $_c = oktaDeleteUserfromGroup -oOrg $oktaOrg -groupId $g -userId $user.id
+                $_c = oktaDeleteUserfromGroup -oOrg $oktaOrg -gid $g -uid $user.id
             }
             catch
             {
@@ -524,7 +520,7 @@ function deleteUser()
         [object]$instruction
     )
 
-    $user = getUser -full $true -userId $instruction.userName
+    $user = getUser -full $true -uid $instruction.userName
     if (!$user)
     {
         return $false
@@ -533,10 +529,10 @@ function deleteUser()
     $user = removeGroups -user $user
     sleep -Seconds 1
     #group removals could/should trigger application removal, get a fresh user obj
-    $user = getUser -full $true -userId $user.id
+    $user = getUser -full $true -uid $user.id
     try
     {
-        $deactivated = oktaDeactivateuserbyID -oOrg $oktaOrg -userId $user.id
+        $deactivated = oktaDeactivateuserbyID -oOrg $oktaOrg -uid $user.id
     }
     catch
     {
