@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+Implementation-Title: varian-server
+Implementation-Version: 00.9.0000
+Implementation-Vendor-Id: okta
+Created-By: Apache Maven
