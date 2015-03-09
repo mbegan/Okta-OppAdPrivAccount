@@ -4,11 +4,10 @@ param
     [string]$path
 )
 
-<# The identifier of the Okta Org from the Okta_org.ps1 file #>
-[string]$oktaOrg = 'prev'
-
 <# This will be appended to the username when we create our Okta Users #>
 [string]$upnAppend = '@varian.com'
+<# This array of possible UPNs will be appended to the username when we search for existing okta users #>
+[array]$PossibleUpns = @('varian.com','vms.ad.varian.com','ad.varian.com')
 
 <# this is the Identifier of our AD Directory/Application #>
 [string]$Directoryaid = '0oa3aktlnubXOcaXH0h7'
@@ -37,6 +36,9 @@ if (! (Get-Module -Name 'Okta'))
     Write-Error 'Okta Module not installed or available, cannot continue'
     sendOutFile -status 'Failure' -internalCode VE0000 -details "Okta Module not installed or unavailable, cannot continue"
 }
+
+<# The identifier of the Okta Org from the Okta_org.ps1 file #>
+[string]$oktaOrg = $oktaDefOrg
 
 [boolean]$createdUser = $false
 [boolean]$sent = $false
@@ -132,8 +134,7 @@ function getUserbyName()
 {
     param
     (
-        [string]$userName,
-        [array]$PossibleUpns = @('varian.com','vms.devqa.varian.com','devqa.varian.com')
+        [string]$userName
     )
 
     #We assume the bare username version has been tried.

@@ -21,6 +21,7 @@
 *.war
 *.zip
 */target/**
+*target/**
  
 # Logs and databases #
 ######################
