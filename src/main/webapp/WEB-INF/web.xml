@@ -24,20 +24,30 @@
     <listener>
         <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
     </listener>
-
+	
 	<security-role>
-		<role-name>member</role-name>
-    </security-role>
+		<description>
+			The role that is required to access the scim server
+		</description>
+		<role-name>scimmer</role-name>
+	</security-role>
+
     <security-constraint>
         <web-resource-collection>
-                <web-resource-name>
-                Entire Application
-                </web-resource-name>
+                <web-resource-name>Entire Application</web-resource-name>
                 <url-pattern>/*</url-pattern>
         </web-resource-collection>
         <auth-constraint>
-            <role-name>member</role-name>
+            <role-name>scimmer</role-name>
         </auth-constraint>
+		<user-data-constraint>
+			<!-- transport-guarantee can be CONFIDENTIAL, INTEGRAL, or NONE -->
+			<transport-guarantee>NONE</transport-guarantee>
+		</user-data-constraint>
     </security-constraint>
 
+	<login-config>
+		<auth-method>BASIC</auth-method>
+		<realm-name>Varian SCIM Server</realm-name>
+	</login-config>
 </web-app>
