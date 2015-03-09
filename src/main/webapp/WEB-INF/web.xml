@@ -25,4 +25,19 @@
         <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
     </listener>
 
+	<security-role>
+		<role-name>member</role-name>
+    </security-role>
+    <security-constraint>
+        <web-resource-collection>
+                <web-resource-name>
+                Entire Application
+                </web-resource-name>
+                <url-pattern>/*</url-pattern>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>member</role-name>
+        </auth-constraint>
+    </security-constraint>
+
 </web-app>
