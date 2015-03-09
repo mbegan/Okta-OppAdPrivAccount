@@ -4,27 +4,50 @@ param
     [string]$path
 )
 
+<# The identifier of the Okta Org from the Okta_org.ps1 file #>
+[string]$oktaOrg = 'prev'
+
+<# This will be appended to the username when we create our Okta Users #>
+[string]$upnAppend = '@varian.com'
+
+<# this is the Identifier of our AD Directory/Application #>
+[string]$DirectoryAppId = '0oa3aktlnubXOcaXH0h7'
+
+<# this is the list of Attributes that are going to be included in our instruction file that we want to pass through to the newly created Okta users #>
+[array]$customAttribs = @('city','employeeType','department','employeeID','title','vmsOwnerID','managerId')
+
+<# This is the path we are installing The required Okta Module to #>
+[string]$OktaModulePath = "E:\opp\PsModules"
+
+<#
+No Edits required below here
+#>
+
+
+
+if (!Test-Path -PathType Container -Path ($OktaModulePath + "\Okta") )
+{
+    Write-Error 'OktaModulePath is incorrect, Cannot continue'
+    sendOutFile -status 'Failure' -internalCode VE0000 -details "OktaModulePath is incorrect, cannot continue"
+}
+
+[boolean]$createdUser = $false
+[boolean]$sent = $false
+
 $tlog = $path.Replace("-input.json","-trace.log")
 $elog = $path.Replace("-input.json","-error.log")
 [string]$errstatus = $null
 
-$envpath = [Environment]::GetEnvironmentVariable("PSModulePath")
-$envpath += ";E:\opp\scripts\PsModules\"
-[Environment]::SetEnvironmentVariable("PSModulePath",$envpath)
+<# Set the Path to include the location of our Okta Module #>
+
+[Environment]::SetEnvironmentVariable("PSModulePath", ( [Environment]::GetEnvironmentVariable("PSModulePath") + ";" + $OktaModulePath ) )
 Import-Module okta
-$oktaOrg = 'prev'
-[string]$upnAppend = '@varian.com'
-$DirectoryAppId = '0oa3aktlnubXOcaXH0h7'
-$sent = $false
-$customAttribs = @('city','employeeType','department','employeeID','title','vmsOwnerID','managerId')
-
-[boolean]$createdUser = $false
-
 if (! (Get-Module -Name 'Okta'))
 {
     Write-Error 'Okta Module not installed or available, cannot continue'
     sendOutFile -status 'Failure' -internalCode VE0000 -details "Okta Module not installed or unavailable, cannot continue"
 }
+
 
 function Get-CurrentLineNumber()
 { 
