@@ -461,7 +461,7 @@ function updateUser()
     }
 
     $loopcount = 0
-    while (((!$appuser.status -eq 'PROVISIONED') -and (!$appuser.syncState -eq 'SYNCHRONIZED')) -and ($loopcount -le 3))
+    while (($appuser.status -eq 'PROVISIONED') -and ($appuser.syncState -eq 'SYNCHRONIZED') -and ($loopcount -le 30))
     {
         $loopcount++
         try
@@ -471,7 +471,7 @@ function updateUser()
         catch
         {
             $appuser = $false
-            sleep -Milliseconds 2500
+            sleep -Milliseconds 3000
             continue
         }
     }
