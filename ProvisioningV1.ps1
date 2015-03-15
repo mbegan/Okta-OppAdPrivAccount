@@ -416,6 +416,12 @@ function updateUser()
         <# Should notify an Admin... some sort of lifecycle event just happened #>
     }
 
+    #Make sure the user is ACTIVE
+    if ($user.status -ne 'ACTIVE')
+    {
+        oktaActivateUserbyId -oOrg $oktaOrg -uid $user.id
+    }
+
     #we've got the user, see if it belongs to to the provisioning group
     $user = setGroup -user $user -gid $instruction.profile.provisioningGroupID
     #setGroups will never fail, it will just return a user object, check the groups member of the user object to ensure efficacy
