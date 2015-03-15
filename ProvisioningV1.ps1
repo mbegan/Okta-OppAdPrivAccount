@@ -433,19 +433,6 @@ function updateUser()
         $errstatus += "Failed to add user to Provisioning group (" + $instruction.profile.provisioningGroupID + ").`n"
     }
 
-    #we've got the user, user is assigned to the provisioning group. see if it belongs to the push group(s)
-    foreach ($pushgroup in $instruction.profile.pushGroupId)
-    {
-        $user = setGroup -user $user -gid $pushgroup
-        if (!$user.groups.Contains($pushgroup))
-        {
-            $errstatus += "Push group (" + $pushgroup + ") does not exist.`n"
-        } elseif (!$user.groups[$pushgroup])
-        {
-            $errstatus += "Failed to add user to Push group (" + $pushgroup + ").`n"
-        }
-    }
-
     #it seems we have the user created, and we've added it (or tried our darndest) to the required groups.
     $user = getUser -full $true -uid $user.id
 
@@ -508,10 +495,24 @@ function updateUser()
         }
     }
 
+    #we've got the user, user is assigned to the provisioning group. see if it belongs to the push group(s)
+    foreach ($pushgroup in $instruction.profile.pushGroupId)
+    {
+        $user = setGroup -user $user -gid $pushgroup
+        if (!$user.groups.Contains($pushgroup))
+        {
+            $errstatus += "Push group (" + $pushgroup + ") does not exist.`n"
+        } elseif (!$user.groups[$pushgroup])
+        {
+            $errstatus += "Failed to add user to Push group (" + $pushgroup + ").`n"
+        }
+    }
+
     if ($needtoNotify)
     {
         <# notify an admin that things didn't look good #>
-        $body = "================User Object: `r`n"
+        $body = "Last LoopCount: " + $loopcount + "`r`n"
+        $body += "================User Object: `r`n"
         $body += ConvertTo-Json -InputObject $user
         $body += "================End User Object: `r`n"
         $body += "================Instruction Object: `r`n"
