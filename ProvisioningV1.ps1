@@ -4,24 +4,19 @@ param
     [string]$path
 )
 
-<# This will be appended to the username when we create our Okta Users #>
-[string]$upnAppend = '@varian.com'
-<# This array of possible UPNs will be appended to the username when we search for existing okta users #>
-[array]$PossibleUpns = @('varian.com','vms.ad.varian.com','ad.varian.com')
-
-<# this is the Identifier of our AD Directory/Application #>
-[string]$Directoryaid = '0oa3aktlnubXOcaXH0h7'
-
 <# this is the list of Attributes that are going to be included in our instruction file that we want to pass through to the newly created Okta users #>
-[array]$customAttribs = @('city','employeeType','department','employeeID','title','vmsOwnerID','managerId')
+[array]$customAttribs = @('employeeType')
+
+<# this is a list of attribute that will be copied directly from the owners okta profile #>
+[array]$copyAttribs = @('countryCode','adCountryCode','co','state','city','zipCode','division','department','employeeID','title')
 
 <# This is the path we are installing The required Okta Module to #>
 [string]$OktaModulePath = "E:\opp\PsModules"
 
-<#
-No Edits required below here
-#>
+<# The SMTP Server to use for email #>
+[string]$smtpserver = "mail-relay.us.varian.com"
 
+<# -------- No Edits required below here -------- #>
 
 if (!(Test-Path -PathType Container -Path ($OktaModulePath + "\Okta") ))
 {
@@ -39,6 +34,8 @@ if (! (Get-Module -Name 'Okta'))
 
 <# The identifier of the Okta Org from the Okta_org.ps1 file #>
 [string]$oktaOrg = $oktaDefOrg
+$upnAppend = $oktaOrgs[$oktaOrg].upnAppend
+$possibleUpns = $oktaOrgs[$oktaOrg].possibleUpns
 
 [boolean]$createdUser = $false
 [boolean]$sent = $false
@@ -67,21 +64,35 @@ function getInstruction()
     {
         return $false
     }
-    #Deal with the pushgroupid 'issue', multivalue (array of string) attributes aren't being sent through the opp agent.
-    if ((!$instruction.profile.pushGroupId) -and ($instruction.profile.spushGroupId))
-    {
-        $pushgroups = $instruction.profile.spushGroupId.split(",")
-        Add-Member -InputObject $instruction.profile -MemberType NoteProperty -Name pushGroupId -Value $pushgroups
-    }
-    $Attributes = New-Object System.Collections.Hashtable
+    
+    $pushgroups = $instruction.profile.pushGroupIds.split(",")
+    Add-Member -InputObject $instruction.profile -MemberType NoteProperty -Name pushGroupId -Value $pushgroups
+
+    $owner = getUser -full $true -uid $instruction.profile.OwnerUPN
+    Add-Member -InputObject $instruction -MemberType NoteProperty -Name owner -Value $owner
+
+    $additional = New-Object System.Collections.Hashtable
+
     foreach ($attr in $customAttribs)
     {
         if ($instruction.profile.$attr)
         {
-            $_c = $Attributes.add($attr,$instruction.profile.$attr)
+            $_c = $additional.add($attr,$instruction.profile.$attr)
         }
     }
-    Add-Member -InputObject $instruction -MemberType NoteProperty -Name additional -Value $Attributes
+
+    foreach ($attr in $copyAttribs)
+    {
+        if ($instruction.owner.profile.$attr)
+        {
+            $_c = $additional.add($attr,$instruction.owner.profile.$attr)
+        }
+    }
+
+    Add-Member -InputObject $instruction -MemberType NoteProperty -Name additional -Value $additional
+
+
+
     return $instruction
 }
 
@@ -196,7 +207,7 @@ function getUser()
     return $user
 }
 
-function setGroups()
+function setGroup()
 {
     param
     (
@@ -264,7 +275,6 @@ function setPassword()
     {
         $subject = "Privileged account [" + $instruction.profile.usernamePrefix + "] for " + $instruction.profile.ownerEmail
         $body = "Please change this at your earliest convenience, it will be automatically expire after 7 days`r`n `r`n `t" + $tpass + "`r`n `r`n Yours truly, Okta`r`n"
-        $smtpserver = "mail-relay.us.varian.com"
         try
         {
             $to = $instruction.profile.ownerEmail
@@ -339,18 +349,21 @@ function createUser()
         [object]$instruction
     )
 
-    #we know the user doesn't exist because nothing would call create user unless it had checked first
+    #we know the user doesn't exist because nothing would call create user unless it had checked first, right...
     #Die with prejudice if error encountered at create.
     try
     {
         $login = $instruction.userName + $upnAppend
-        if ($instruction.profile.ownerEmail -like "*@*.*")
-        {
-            $email = $instruction.profile.ownerEmail
-        } else {
-            $email = $login
-        }
-        $_c = $instruction.additional.add('description', "Account created usering OPP")
+        $email = $instruction.profile.OwnerUPN
+        $now = Get-Date
+        $mdy = $now.ToShortDateString()
+        $hms = $now.ToShortTimeString()
+        $description = "Account created using OPP on: " + $mdy + " at: " + $hms
+
+        $_c = $instruction.additional.add('description', $description)
+        $_c = $instruction.additional.add('manager', $instruction.profile.OwnerUPN)
+        $_c = $instruction.additional.add('nickName', $instruction.userName)
+
         $password = oktaNewPassword -Length 15 -MustIncludeSets 3
         $user = oktaNewUser -oOrg $oktaOrg -login $login -firstName $instruction.userName -lastName $instruction.userName -email $email -password $password -additional $instruction.additional
         $password = $null
@@ -372,29 +385,16 @@ function createUser()
     return $user
 }
 
-function getOwnerId()
-{
-
-}
-
 function updateUser()
 {
     param
     (
         [object]$instruction
     )
+    
+    [boolean]$needtoNotify=$false
 
-    <#
-    Not sure where i was going with this
-    if ($instruction.profile.ownerOktaID -eq "PlaceHolderforOwnerOktaID")
-    {
-        $ownerusername = $instruction.userName.replace($instruction.profile.usernamePrefix,'')
-        $owner = getUser -full $false -uid $ownerusername
-        Add-Member -InputObject $instruction.profile -MemberType NoteProperty -Name vmsOwnerID -Value $owner.id -Force
-    }
-    #>
-
-    #Does the user already exist?
+    #Does the privleged user already exist?
     if ( (!$instruction.externalId) -or ($instruction.externalId -eq $null) -or ($instruction.externalId.ToLower() -eq 'null') )
     {
         $user = getUser -full $true -uid $instruction.userName
@@ -412,30 +412,12 @@ function updateUser()
             return $false
         }
     } else {
-    <# for not notify an admin of the requirement to update
-        #the user already existed, this must be an update. proceed with profileupdate.
-        $user.profile.employeeID = $instruction.profile.employeeID
-        $user.profile.city = $instruction.profile.city
-        $user.profile.department = $instruction.profile.department
-        #$user.profile.managerId = $instruction.profile.manager
-        $user.profile.title = $instruction.profile.title
-        $user.profile.login = ("x" + $instruction.userName + $upnAppend)
-        $user.profile.firstName = ("x" + $instruction.userName)
-        $user.profile.lastName = ("x" + $instruction.userName)
-        $user.profile.email = ("x" + $instruction.profile.ownerEmail)
-        try
-        {
-            oktaUpdateUserProfilebyID -oOrg $oktaOrg -uid $user.id -UpdatedProfile $user.profile
-        }
-        catch
-        {
-            write-host nope
-        }
-    #>
+        <# when ALM comes along we may do something here... #>
+        <# Should notify an Admin... some sort of lifecycle event just happened #>
     }
 
     #we've got the user, see if it belongs to to the provisioning group
-    $user = setGroups -user $user -gid $instruction.profile.provisioningGroupID
+    $user = setGroup -user $user -gid $instruction.profile.provisioningGroupID
     #setGroups will never fail, it will just return a user object, check the groups member of the user object to ensure efficacy
     if (!$user.groups.Contains($instruction.profile.provisioningGroupID))
     {
@@ -448,7 +430,7 @@ function updateUser()
     #we've got the user, user is assigned to the provisioning group. see if it belongs to the push group(s)
     foreach ($pushgroup in $instruction.profile.pushGroupId)
     {
-        $user = setGroups -user $user -gid $pushgroup
+        $user = setGroup -user $user -gid $pushgroup
         if (!$user.groups.Contains($pushgroup))
         {
             $errstatus += "Push group (" + $pushgroup + ") does not exist.`n"
@@ -459,19 +441,84 @@ function updateUser()
     }
 
     #it seems we have the user created, and we've added it (or tried our darndest) to the required groups.
-    #Get the user one more time (why not right), if I wasn't getting the user i'd feel compelled to put a sleep in here.
-    sleep -Seconds 2
     $user = getUser -full $true -uid $user.id
 
-    if ($createdUser)
+    #Get the Appuser for the directory master, lets check this thing out.
+    $loopcount = 0
+    while ((!$appuser.id) -and ($loopcount -le 3))
     {
-        $pass = setPassword -user $user -instruction $instruction
-        if (!$pass)
+        $loopcount++
+        try
         {
-            $errstatus += "Failed to set or notify the user of their password.`n"
+            $appuser = oktaGetMasterProfile -oOrg $oktaOrg -uid $user.id
+        }
+        catch
+        {
+            $appuser = $false
+            sleep -Milliseconds 2500
+            continue
         }
     }
 
+    $loopcount = 0
+    while (((!$appuser.status -eq 'PROVISIONED') -and (!$appuser.syncState -eq 'SYNCHRONIZED')) -and ($loopcount -le 3))
+    {
+        $loopcount++
+        try
+        {
+            $appuser = oktaGetMasterProfile -oOrg $oktaOrg -uid $user.id
+        }
+        catch
+        {
+            $appuser = $false
+            sleep -Milliseconds 2500
+            continue
+        }
+    }
+
+    try
+    {
+        $whencreated = Get-Date -Date $appuser.profile.whenCreated
+    }
+    catch
+    {
+        $whencreated = $false
+    }
+
+    if (!$whencreated)
+    {
+        $needtoNotify = $true
+    } else {
+        $sincecreated = New-TimeSpan -Start $whencreated -End (Get-Date)
+
+        if ($sincecreated.Days -le 2)
+        {
+            $pass = setPassword -user $user -instruction $instruction
+            if (!$pass)
+            {
+                $errstatus += "Failed to set or notify the user of their password.`n"
+                $needtoNotify = $true
+            }
+        }
+    }
+
+    if ($needtoNotify)
+    {
+        <# notify an admin that things didn't look good #>
+        $body = "================User Object: `r`n"
+        $body += ConvertTo-Json -InputObject $user
+        $body += "================End User Object: `r`n"
+        $body += "================Instruction Object: `r`n"
+        $body += ConvertTo-Json -InputObject $instruction
+        $body += "================End Instruction Object: `r`n"
+        if ($appuser)
+        {
+            $body += "================Application User Object: `r`n"
+            $body += ConvertTo-Json -InputObject $appuser
+            $body += "================End Application User Object: `r`n"
+        }
+        Send-MailMessage -From megan@varian.com -to megan@varian.com -SmtpServer $smtpserver -Subject "Admin Notification" -Body $body
+    }
     return $user
 }
 
