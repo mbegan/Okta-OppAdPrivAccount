@@ -273,11 +273,11 @@ function setPassword()
     }
     if ($tuser)
     {
-        $subject = "Privileged account [" + $instruction.profile.usernamePrefix + "] for " + $instruction.profile.ownerEmail
+        $subject = "Privileged account [" + $instruction.profile.usernamePrefix + "] for " + $instruction.profile.OwnerUPN
         $body = "Please change this at your earliest convenience, it will be automatically expire after 7 days`r`n `r`n `t" + $tpass + "`r`n `r`n Yours truly, Okta`r`n"
         try
         {
-            $to = $instruction.profile.ownerEmail
+            $to = $instruction.profile.OwnerUPN
             #for now send them all to me
             $to = "megan@varian.com"
             $smtp = Send-MailMessage -From WindowsTeam.VIT@varian.com -To $to -Subject $subject -Body $body -SmtpServer $smtpserver -Priority High
@@ -454,7 +454,7 @@ function updateUser()
     }
 
     $loopcount = 0
-    while (($appuser.status -eq 'PROVISIONED') -and ($appuser.syncState -eq 'SYNCHRONIZED') -and ($loopcount -le 30))
+    while (($appuser.status -ne 'PROVISIONED') -and ($appuser.syncState -ne 'SYNCHRONIZED') -and ($loopcount -le 30))
     {
         $loopcount++
         try
