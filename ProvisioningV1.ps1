@@ -480,7 +480,9 @@ function updateUser()
 
     if (!$whencreated)
     {
-        $needtoNotify = $true
+        #we'll take the route of assuming the AD account is new in this case
+        #Had it already been created we would have a whencreated attribute
+        $pass = setPassword -user $user -instruction $instruction
     } else {
         $sincecreated = New-TimeSpan -Start $whencreated -End (Get-Date)
 
@@ -508,6 +510,9 @@ function updateUser()
         }
     }
 
+    #debugging
+    $needtoNotify=$true
+    #
     if ($needtoNotify)
     {
         <# notify an admin that things didn't look good #>
