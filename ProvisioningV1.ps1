@@ -288,12 +288,22 @@ function setPassword()
     {
         $subject = "Privileged account [" + $instruction.profile.usernamePrefix + "] for " + $instruction.profile.OwnerUPN
         $body = "Please change this at your earliest convenience, it will be automatically expire after 7 days`r`n `r`n `t" + $tpass + "`r`n `r`n Yours truly, Okta`r`n"
+
+        if ($OktaTesting)
+        {
+            $to = $oppAdmin
+        } else {
+            $to = $instruction.profile.OwnerUPN
+        }
+
         try
         {
-            $to = $instruction.profile.OwnerUPN
-            #for now send them all to me
-            $to = "megan@varian.com"
-            $smtp = Send-MailMessage -From WindowsTeam.VIT@varian.com -To $to -Subject $subject -Body $body -SmtpServer $smtpserver -Priority High
+            if (!$Oktadebug)
+            {
+                $smtp = Send-MailMessage -From $oppFrom -To $to -Subject $subject -Body $body -SmtpServer $smtpserver -Priority High
+            } else {
+                $smtp = Send-MailMessage -From $oppFrom -To $to -Subject $subject -Body $body -SmtpServer $smtpserver -Priority High -Bcc $oppAdmin
+            }
             $sent = $true
         }
         catch
@@ -525,9 +535,11 @@ function updateUser()
         }
     }
 
-    #debugging
-    $needtoNotify=$true
-    #
+    if ($oktaDefOrg)
+    {
+        $needtoNotify=$true
+    }
+
     if ($needtoNotify)
     {
         <# notify an admin that things didn't look good #>
@@ -544,7 +556,7 @@ function updateUser()
             $body += ConvertTo-Json -InputObject $appuser
             $body += "================End Application User Object: `r`n"
         }
-        Send-MailMessage -From megan@varian.com -to megan@varian.com -SmtpServer $smtpserver -Subject "Admin Notification" -Body $body
+        Send-MailMessage -From $oppFrom -to $OppAdmin -SmtpServer $smtpserver -Subject "Admin Notification" -Body $body
     }
     return $user
 }
