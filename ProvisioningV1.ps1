@@ -511,7 +511,7 @@ function updateUser()
     } else {
         $sincecreated = New-TimeSpan -Start $whencreated -End (Get-Date)
 
-        if ($sincecreated.Days -le 2)
+        if ($sincecreated.TotalMinutes -le 10)
         {
             $pass = setPassword -user $user -instruction $instruction
             if (!$pass)
