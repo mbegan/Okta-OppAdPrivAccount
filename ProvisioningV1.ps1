@@ -42,6 +42,8 @@ $possibleUpns = $oktaOrgs[$oktaOrg].possibleUpns
 
 $tlog = $path.Replace("-input.json","-trace.log")
 $elog = $path.Replace("-input.json","-error.log")
+$pathParts = $path.Split("\")
+$processedpath = (($pathParts[0..($pathParts.Count-2)]) -join "\") + "\processed\" + $pathParts[($pathParts.Count-1)]
 [string]$errstatus = $null
 
 function Get-CurrentLineNumber()
@@ -136,6 +138,14 @@ function sendOutFile()
     } else {
         Write-Error ($internalCode + ": " + $details)
         $_exitcode = 1
+    }
+    try
+    {
+        Move-Item -Path $path -Destination $processedpath -Force -Confirm:$false
+    }
+    catch
+    {
+        continue
     }
     Rename-Item -Path $outTemp -NewName $outJson -Force -Confirm:$false
     exit $_exitcode
