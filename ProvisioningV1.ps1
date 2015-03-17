@@ -448,12 +448,13 @@ function updateUser()
         catch
         {
             $appuser = $false
-            sleep -Milliseconds 2500
+            sleep -Seconds 3
             continue
         }
     }
 
     $loopcount = 0
+    $sleepseconds = 16
     while (($appuser.status -ne 'PROVISIONED') -and ($appuser.syncState -ne 'SYNCHRONIZED') -and ($loopcount -le 30))
     {
         $loopcount++
@@ -464,7 +465,8 @@ function updateUser()
         catch
         {
             $appuser = $false
-            sleep -Milliseconds 3000
+            if ($sleepseconds -gt 4) {$sleepseconds -= ($sleepseconds/4)}
+            sleep -Seconds $sleepseconds
             continue
         }
     }
