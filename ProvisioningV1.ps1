@@ -68,7 +68,7 @@ function getInstruction()
     $pushgroups = $instruction.profile.pushGroupIds.split(",")
     Add-Member -InputObject $instruction.profile -MemberType NoteProperty -Name pushGroupId -Value $pushgroups
 
-    $owner = getUser -full $true -uid $instruction.profile.OwnerUPN
+    $owner = getUser -full -uid $instruction.profile.OwnerUPN
     Add-Member -InputObject $instruction -MemberType NoteProperty -Name owner -Value $owner
 
     $additional = New-Object System.Collections.Hashtable
@@ -171,7 +171,7 @@ function getUser()
     param
     (
         [string]$uid,
-        [boolean]$full = $false
+        [switch]$full
     )
     try
     {
@@ -374,10 +374,10 @@ function createUser()
     }
     sleep -Milliseconds 500
     #Wait for the user to exit transitioning to status
-    $user = getUser -full $true -uid $user.id
+    $user = getUser -full -uid $user.id
     while (($user.status -ne 'ACTIVE') -and ($loopcount -le 10))
     {
-        $user = getUser -full $true -uid $user.id
+        $user = getUser -full -uid $user.id
         $loopcount++
         sleep -Seconds 1
     }
@@ -397,9 +397,9 @@ function updateUser()
     #Does the privleged user already exist?
     if ( (!$instruction.externalId) -or ($instruction.externalId -eq $null) -or ($instruction.externalId.ToLower() -eq 'null') )
     {
-        $user = getUser -full $true -uid $instruction.userName
+        $user = getUser -full -uid $instruction.userName
     } else {
-        $user = getUser -full $true -uid $instruction.externalId
+        $user = getUser -full -uid $instruction.externalId
     }
 
     if (!$user)
@@ -434,7 +434,7 @@ function updateUser()
     }
 
     #it seems we have the user created, and we've added it (or tried our darndest) to the required groups.
-    $user = getUser -full $true -uid $user.id
+    $user = getUser -full -uid $user.id
 
     #Get the Appuser for the directory master, lets check this thing out.
     $loopcount = 0
@@ -580,7 +580,7 @@ function deleteUser()
         [object]$instruction
     )
 
-    $user = getUser -full $true -uid $instruction.userName
+    $user = getUser -full -uid $instruction.userName
     if (!$user)
     {
         return $false
@@ -589,7 +589,7 @@ function deleteUser()
     $user = removeGroups -user $user
     sleep -Seconds 1
     #group removals could/should trigger application removal, get a fresh user obj
-    $user = getUser -full $true -uid $user.id
+    $user = getUser -full -uid $user.id
     try
     {
         $deactivated = oktaDeactivateuserbyID -oOrg $oktaOrg -uid $user.id
