@@ -76,7 +76,7 @@ function getInstruction()
     }
     Add-Member -InputObject $instruction.profile -MemberType NoteProperty -Name pushGroupId -Value $pushgroups
 
-    $owner = getUser -full -uid $instruction.profile.OwnerUPN
+    $owner = getUser -uid $instruction.profile.OwnerUPN
     Add-Member -InputObject $instruction -MemberType NoteProperty -Name owner -Value $owner
 
     $additional = New-Object System.Collections.Hashtable
