@@ -42,8 +42,11 @@ $possibleUpns = $oktaOrgs[$oktaOrg].possibleUpns
 
 $tlog = $path.Replace("-input.json","-trace.log")
 $elog = $path.Replace("-input.json","-error.log")
+$elogParts = $path.Split("\")
 $pathParts = $path.Split("\")
 $processedpath = (($pathParts[0..($pathParts.Count-2)]) -join "\") + "\processed\" + $pathParts[($pathParts.Count-1)]
+$elog = (($elogParts[0..($elogParts.Count-2)]) -join "\") + "\errors\" + $elogParts[($elogParts.Count-1)]
+
 [string]$errstatus = $null
 
 function Get-CurrentLineNumber()
