@@ -70,7 +70,10 @@ function getInstruction()
         return $false
     }
     
-    $pushgroups = $instruction.profile.pushGroupIds.split(",")
+    if ($instruction.profile.pushGroupIds)
+    {
+        $pushgroups = $instruction.profile.pushGroupIds.split(",")
+    }
     Add-Member -InputObject $instruction.profile -MemberType NoteProperty -Name pushGroupId -Value $pushgroups
 
     $owner = getUser -full -uid $instruction.profile.OwnerUPN
@@ -387,9 +390,10 @@ function createUser()
         $_c = $instruction.additional.add('manager', $instruction.profile.OwnerUPN)
         $_c = $instruction.additional.add('nickName', $instruction.userName)
 
-        $password = oktaNewPassword -Length 15 -MustIncludeSets 3
+        $password = oktaNewPassword -Length 15 -MustIncludeSets 4
         $user = oktaNewUser -oOrg $oktaOrg -login $login -firstName $instruction.userName -lastName $instruction.userName -email $email -password $password -additional $instruction.additional
         $password = $null
+        Remove-Variable password
     }
     catch
     {
