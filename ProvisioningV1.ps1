@@ -556,7 +556,7 @@ function updateUser()
             $body += ConvertTo-Json -InputObject $appuser
             $body += "================End Application User Object: `r`n"
         }
-        Send-MailMessage -From $oppFrom -to $OppAdmin -SmtpServer $smtpserver -Subject "Admin Notification" -Body $body
+        Send-MailMessage -From $oppFrom -to $oppAdmin -SmtpServer $smtpserver -Subject "Admin Notification" -Body $body
     }
     return $user
 }
