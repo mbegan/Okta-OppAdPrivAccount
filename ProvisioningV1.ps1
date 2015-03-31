@@ -290,7 +290,7 @@ function setPassword()
     if ($tuser)
     {
         $subject = "Privileged account [" + $instruction.profile.usernamePrefix + "] for " + $instruction.profile.OwnerUPN
-        $body = "Please change this at your earliest convenience, it will be automatically expire after 7 days`r`n `r`n `t" + $tpass + "`r`n `r`n Yours truly, Okta`r`n"
+        $body = "Please change this at your earliest convenience, it will be automatically expire after 7 days`r`n `r`n `t" + $tpass + "`r`n `r`n Yours truly, On-Premise Provisioning (OPP)`r`n"
 
         if ($OktaTesting)
         {
